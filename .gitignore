@@ -1,0 +1,4 @@
+DraugiemApi/resources/tmp/**/*
+.directory
+Thumbs.db
+nbproject
