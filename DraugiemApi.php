@@ -1,5 +1,7 @@
 <?php
 
+namespace li3_dr;
+
 use \Exception;
 use \lithium\core\Libraries;
 use \lithium\util\Set;
@@ -78,7 +80,7 @@ class DraugiemApi {
 	 * Ieseto aplikācijas iestatījumus un pašreiz izmantoto iestatījumu identifikatoru
 	 */
 	public static function __init() {
-		$config = Libraries::get('DraugiemApi');
+		$config = Libraries::get('li3_dr');
 		if (!empty($config['config'])) {
 			self::$config = $config['config'];
 			if (!empty($_SESSION['draugiem_config_name'])) {

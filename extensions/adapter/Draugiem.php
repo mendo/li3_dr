@@ -1,12 +1,12 @@
 <?php
 
-namespace DraugiemApi\extensions\adapter;
+namespace li3_dr\extensions\adapter;
 
 use \Exception;
 use \lithium\storage\Session;
 use \lithium\core\Libraries;
 
-use \DraugiemApi;
+use \li3_dr\DraugiemApi;
 
 /**
  * Draugiem.lv autorizācijas adapteris

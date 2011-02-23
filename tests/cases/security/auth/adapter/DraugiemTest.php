@@ -6,7 +6,7 @@
  * @license       http://opensource.org/licenses/bsd-license.php The BSD License
  */
 
-namespace app\tests\cases\security\auth\adapter;
+namespace li3_dr\tests\cases\security\auth\adapter;
 
 use lithium\action\Request;
 use lithium\data\entity\Record;
@@ -15,25 +15,23 @@ use lithium\data\Connections;
 
 
 use app\models\Member;
-use DraugiemApi;
-use DraugiemApi\extensions\adapter\Draugiem;
+use li3_dr\DraugiemApi;
+use li3_dr\extensions\adapter\Draugiem;
 
 class DraugiemTest extends \lithium\test\Unit {
 
 	public function setUp() {
-		$this->old_dr_lib = Libraries::get('DraugiemApi');
+		$this->old_dr_lib = Libraries::get('li3_dr');
 		$this->config_name = 'test';
 		$this->dr_auth_code = '136fc96ce4ffe820b83e';
 
-		Libraries::add('DraugiemApi', array(
-			'prefix' => false,
-			'includePath' => true,
+		Libraries::add('li3_dr', array(
 			'config' => array(
 				'test' => array(
 					'app_id' => '1111',
 					'app_key' => '22222222222222222222',
-					'api_url' => 'http://localhost/2puse_dr/tests/draugiem_api/',
-					'login_url' => 'http://localhost/2puse_dr/tests/draugiem_login/',
+					'api_url' => 'http://localhost/op_dr/tests/draugiem_api/',
+					'login_url' => 'http://localhost/op_dr/tests/draugiem_login/',
 					'js_url' => 'http://ifrype.com/applications/external/draugiem.js',
 					'timeout' => 180
 				)
@@ -44,7 +42,7 @@ class DraugiemTest extends \lithium\test\Unit {
 	}
 
 	public function tearDown() {
-		Libraries::add('DraugiemApi', $this->old_dr_lib);
+		Libraries::add('li3_dr', $this->old_dr_lib);
 		DraugiemApi::clearSession();
 		$members = Member::find('all');
 		if(count($members)) {
@@ -339,48 +337,12 @@ class DraugiemTest extends \lithium\test\Unit {
 
 	public function testGetLoginURL() {
 		$redirect_url = 'http://testapp';
-		$config = Libraries::get('DraugiemApi');
+		$config = Libraries::get('li3_dr');
 		$app_key = $config['config'][$this->config_name]['app_key'];
 		$result = DraugiemApi::getLoginURL($redirect_url);
-		$expected = 'http://localhost/2puse_dr/tests/draugiem_login/?app=1111&hash=' . md5($app_key . $redirect_url) . '&redirect=' . urlencode($redirect_url);
+		$expected = 'http://localhost/op_dr/tests/draugiem_login/?app=1111&hash=' . md5($app_key . $redirect_url) . '&redirect=' . urlencode($redirect_url);
 		$this->assertEqual($expected, $result);
 	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
-
-//	public function testGetUserId() {
-//		$result = DraugiemApi::getUserId();
-//		$expected = '12345';
-//		$this->assertEqual($expected, $result);
-//	}
 
 	/**
 	 * Tests that `Form::set()` passes data through unmodified, even with invalid options.
