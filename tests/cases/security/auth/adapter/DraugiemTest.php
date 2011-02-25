@@ -13,10 +13,11 @@ use lithium\data\entity\Record;
 use lithium\core\Libraries;
 use lithium\data\Connections;
 
-
 use app\models\Member;
 use li3_dr\DraugiemApi;
 use li3_dr\extensions\adapter\Draugiem;
+
+use li3_dr\tests\mocks\data\MockDraugiemApi;
 
 class DraugiemTest extends \lithium\test\Unit {
 
@@ -43,7 +44,7 @@ class DraugiemTest extends \lithium\test\Unit {
 
 	public function tearDown() {
 		Libraries::add('li3_dr', $this->old_dr_lib);
-		DraugiemApi::clearSession();
+		MockDraugiemApi::clearSession();
 		$members = Member::find('all');
 		if(count($members)) {
 			$members->delete();
@@ -52,6 +53,7 @@ class DraugiemTest extends \lithium\test\Unit {
 
 	public function testAdapter() {
 		$subject = new Draugiem(array(
+			'api' => '\li3_dr\tests\mocks\data\MockDraugiemApi',
 			'model' => '\app\models\Member',
 			'config' => $this->config_name
 		));
@@ -83,8 +85,8 @@ class DraugiemTest extends \lithium\test\Unit {
 		);
 
 		$this->assertEqual($expected, $result);
-		DraugiemApi::clearSession();
-		
+		MockDraugiemApi::clearSession();
+
 		/**
 		 * 2
 		 */
@@ -92,14 +94,14 @@ class DraugiemTest extends \lithium\test\Unit {
 		$request->query = array(
             'dr_auth_status' => 'error'
 		);
-		
+
 		$this->expectException(true);
 		$result = $subject->check($request, $request->query, array(
 			'checkSession' => false,
 			'writeSession' => false
 		));
-		DraugiemApi::clearSession();
-		
+		MockDraugiemApi::clearSession();
+
 		/**
 		 * 3
 		 */
@@ -136,7 +138,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		));
 		
 		$this->assertEqual('Lietotājs', $result['surname']);
-		DraugiemApi::clearSession();
+		MockDraugiemApi::clearSession();
 
 		/**
 		 * 2
@@ -152,25 +154,25 @@ class DraugiemTest extends \lithium\test\Unit {
 	}
 
 	public function testGetUserKey() {
-		$result = DraugiemApi::getUserKey();
+		$result = MockDraugiemApi::getUserKey();
 		$expected = '3333333333333333333333333333';
 		$this->assertEqual($expected, $result);
 	}
 
 	public function testGetUserLanguage() {
-		$result = DraugiemApi::getUserLanguage();
+		$result = MockDraugiemApi::getUserLanguage();
 		$expected = 'lv';
 		$this->assertEqual($expected, $result);
 	}
 
 	public function testGetUserId() {
-		$result = DraugiemApi::getUserId();
+		$result = MockDraugiemApi::getUserId();
 		$expected = '12345';
 		$this->assertEqual($expected, $result);
 	}
 
 	public function testGetUserData() {
-		$result = DraugiemApi::getUserData();
+		$result = MockDraugiemApi::getUserData();
 		$expected = array(
 			'uid' => '12345',
 			'name' => 'Testa',
@@ -186,19 +188,19 @@ class DraugiemTest extends \lithium\test\Unit {
 	}
 
 	public function testImageForSize() {
-		$result = DraugiemApi::imageForSize('http://i9.ifrype.com/profile/876/459/v1256785837/sm_56789.jpg', 'medium');
+		$result = MockDraugiemApi::imageForSize('http://i9.ifrype.com/profile/876/459/v1256785837/sm_56789.jpg', 'medium');
 		$expected = 'http://i9.ifrype.com/profile/876/459/v1256785837/m_56789.jpg';
 		$this->assertEqual($expected, $result);
 	}
 
 	public function testCheckFriendship() {
-		$result = DraugiemApi::checkFriendship(12345, 54321);
+		$result = MockDraugiemApi::checkFriendship(12345, 54321);
 		$expected = 'OK';
 		$this->assertEqual($expected, $result);
 	}
 	
 	public function testGetFriendCount() {
-		$result = DraugiemApi::getFriendCount();
+		$result = MockDraugiemApi::getFriendCount();
 		$expected = '537';
 		$this->assertEqual($expected, $result);
 	}
@@ -207,7 +209,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 1
 		 */
-		$result = DraugiemApi::getUserFriends(1, 2, true);
+		$result = MockDraugiemApi::getUserFriends(1, 2, true);
 		$expected = array(
 			66666,
 			77777
@@ -217,7 +219,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 2
 		 */
-		$result = DraugiemApi::getUserFriends(1, 2, false);
+		$result = MockDraugiemApi::getUserFriends(1, 2, false);
 		$expected = array(
 			66666 => array(
 				'uid' => '66666',
@@ -249,7 +251,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 1
 		 */
-		$result = DraugiemApi::getOnlineFriends(1, 2, true);
+		$result = MockDraugiemApi::getOnlineFriends(1, 2, true);
 		$expected = array(
 			66666,
 			77777
@@ -259,7 +261,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 2
 		 */
-		$result = DraugiemApi::getOnlineFriends(1, 2, false);
+		$result = MockDraugiemApi::getOnlineFriends(1, 2, false);
 		$expected = array(
 			66666 => array(
 				'uid' => '66666',
@@ -288,7 +290,7 @@ class DraugiemTest extends \lithium\test\Unit {
 	}
 
 	public function testGetUserCount() {
-		$result = DraugiemApi::getUserCount();
+		$result = MockDraugiemApi::getUserCount();
 		$expected = '48';
 		$this->assertEqual($expected, $result);
 	}
@@ -297,7 +299,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 1
 		 */
-		$result = DraugiemApi::getAppUsers(1, 2, true);
+		$result = MockDraugiemApi::getAppUsers(1, 2, true);
 		$expected = array(
 			66666,
 			77777
@@ -307,7 +309,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		/**
 		 * 2
 		 */
-		$result = DraugiemApi::getAppUsers(1, 2, false);
+		$result = MockDraugiemApi::getAppUsers(1, 2, false);
 		$expected = array(
 			66666 => array(
 				'uid' => '66666',
@@ -339,7 +341,7 @@ class DraugiemTest extends \lithium\test\Unit {
 		$redirect_url = 'http://testapp';
 		$config = Libraries::get('li3_dr');
 		$app_key = $config['config'][$this->config_name]['app_key'];
-		$result = DraugiemApi::getLoginURL($redirect_url);
+		$result = MockDraugiemApi::getLoginURL($redirect_url);
 		$expected = 'http://localhost/op_dr/tests/draugiem_login/?app=1111&hash=' . md5($app_key . $redirect_url) . '&redirect=' . urlencode($redirect_url);
 		$this->assertEqual($expected, $result);
 	}

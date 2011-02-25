@@ -12,6 +12,12 @@ use \lithium\util\Set;
  * Satur funkcijas, kuras autorizē lietotāju un iegūst pieejamos datus no Draugiem.lv
  */
 class DraugiemApi {
+	/**
+	 * API modelis
+	 *
+	 * @var array
+	 */
+	protected static $model = null;
 
 	/**
 	 * Draugiem API iespējamie iestatījumi
@@ -93,6 +99,13 @@ class DraugiemApi {
 		}
 	}
 
+	public static function config($config) {
+		extract($config);
+		self::$model = $model;
+		self::$request = $request;
+		self::$active_config = $active_config;
+	}
+
 	/**
 	 * Load draugiem.lv user data and validate session.
 	 *
@@ -102,10 +115,7 @@ class DraugiemApi {
 	 *
 	 * @return boolean Returns true on successful authorization or false on failure.
 	 */
-	public static function getSession($config_name, $request) {
-		self::$request = $request;
-		self::$active_config = $_SESSION['draugiem_config_name'] = $config_name;
-
+	public static function getSession() {
 		if (session_id() == '') {
 			session_start();
 		}
@@ -180,9 +190,7 @@ class DraugiemApi {
 			}
 		}
 
-		throw new \RuntimeException(
-			'Nesekmīgs Draugiem.lv autorizācijas mēģinājums'
-		);
+		return false;
 	}
 
 	/**
@@ -219,7 +227,6 @@ class DraugiemApi {
 			return false;
 		}
 	}
-
 
 	/**
 	 * Return user data for specified Draugiem.lv user IDs
@@ -281,7 +288,6 @@ class DraugiemApi {
 		}
 		return $img;
 	}
-
 
 	/**
 	 * Check if two application users are friends
@@ -418,8 +424,6 @@ class DraugiemApi {
 		}
 	}
 
-
-
 	################################################
 	###### Draugiem.lv passport functions ##########
 	################################################
@@ -551,7 +555,6 @@ class DraugiemApi {
 
 	}
 
-
 	##########################################################
 	### Functions available only for approved applications ###
 	##########################################################
@@ -631,7 +634,7 @@ class DraugiemApi {
 			}
 		}
 
-		$response = file_get_contents($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
+		$response = self::apiRequest($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
 
 		if ($response === false) {//Request failed
 			self::$lastError = 1;
@@ -654,6 +657,16 @@ class DraugiemApi {
 				return $response;
 			}
 		}
+	}
+
+	/**
+	 * Zvans Draugiem
+	 *
+	 * @param string $url
+	 * @return mixed
+	 */
+	public static function apiRequest($url) {
+		return file_get_contents($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
 	}
 
 	/**

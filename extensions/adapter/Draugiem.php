@@ -6,8 +6,6 @@ use \Exception;
 use \lithium\storage\Session;
 use \lithium\core\Libraries;
 
-use \li3_dr\DraugiemApi;
-
 /**
  * Draugiem.lv autorizācijas adapteris
  *
@@ -17,6 +15,13 @@ use \li3_dr\DraugiemApi;
  *	- user_data		Draugiem.lv lietotāja dati (neobligāti)
  */
 class Draugiem extends \lithium\core\Object {
+	/**
+	 * API nosaukums
+	 *
+	 * @var string
+	 */
+	protected $_api = '';
+
 	/**
 	 * Autorizācijas modeļa nosaukums
 	 * 
@@ -45,6 +50,7 @@ class Draugiem extends \lithium\core\Object {
 	 * @var array
 	 */
 	protected $_autoConfig = array(
+		'api',
 		'model',
 		'query',
 		'config'
@@ -57,6 +63,7 @@ class Draugiem extends \lithium\core\Object {
 	 */
 	public function __construct(array $config = array()) {
 		$defaults = array(
+			'api' => '\li3_dr\DraugiemApi',
 			'model' => 'Member',
 			'query' => 'draugiemLogin'
 		);
@@ -75,9 +82,20 @@ class Draugiem extends \lithium\core\Object {
 	public function check($data, array $options = array()) {
 		$model = $this->_model;
 		$query = $this->_query;
+		$api = $this->_api;
 
-		if (DraugiemApi::getSession($this->_config, $data->query)) {
-			$user = $model::$query(DraugiemApi::getUserKey(), DraugiemApi::getUserData());
+		$api::config(array(
+			'active_config' => $this->_config,
+			'request' => $data->query,
+			'model' => $api
+		));
+
+		if ($api::getSession()) {
+			$user = $model::$query($api::getUserKey(), $api::getUserData());
+		} else {
+			throw new \RuntimeException(
+				'Nevar savienoties ar Draugiem.lv'
+			);
 		}
 
 		return !empty($user) ? $user->data() : false;
@@ -112,7 +130,8 @@ class Draugiem extends \lithium\core\Object {
 	 * @return void
 	 */
 	public function clear(array $options = array()) {
-		DraugiemApi::clearSession();
+		$api = $this->_api;
+		$api::clearSession();
 	}
 }
 ?>
