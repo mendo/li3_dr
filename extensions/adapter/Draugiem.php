@@ -10,9 +10,8 @@ use \lithium\core\Libraries;
  * Draugiem.lv autorizācijas adapteris
  *
  * Atrodās iekš un izmanto DraugiemApi bibliotēku.
- * Adaptera izmantotajai query funkcijai jāsagaida divi parametri:
- *	- user_key		Draugiem.lv lietotāja atslēga - unikāls Draugiem.lv lietotāja identifikators;
- *	- user_data		Draugiem.lv lietotāja dati (neobligāti)
+ * Adaptera izmantotajai query funkcijai jāsagaida viens parametrs:
+ *	- user_data		Draugiem.lv lietotāja dati
  */
 class Draugiem extends \lithium\core\Object {
 	/**
@@ -91,7 +90,7 @@ class Draugiem extends \lithium\core\Object {
 		));
 
 		if ($api::getSession()) {
-			$user = $model::$query($api::getUserKey(), $api::getUserData());
+			$user = $model::$query($api::getUserData());
 		} else {
 			throw new \RuntimeException(
 				'Nevar savienoties ar Draugiem.lv'
