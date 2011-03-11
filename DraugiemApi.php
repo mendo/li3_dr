@@ -87,10 +87,12 @@ class DraugiemApi {
 	 */
 	public static function __init() {
 		$config = Libraries::get('li3_dr');
+
 		if (!empty($config['config'])) {
 			self::$config = $config['config'];
 			if (!empty($_SESSION['draugiem_config_name'])) {
 				self::$active_config = $_SESSION['draugiem_config_name'];
+				self::$user_key = $_SESSION['draugiem_userkey'];
 			}
 		} else {
 			throw new \RuntimeException(
@@ -620,6 +622,7 @@ class DraugiemApi {
 	 */
 	public static function apiCall($action, $args = array()) {
 		$url = self::$config[self::$active_config]['api_url'] . '?app=' . self::$config[self::$active_config]['app_key'];
+
 		if (self::$user_key) {//User has been authorized
 			$url .= '&apikey=' . self::$user_key;
 		}
