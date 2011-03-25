@@ -92,6 +92,8 @@ class DraugiemApi {
 			self::$config = $config['config'];
 			if (!empty($_SESSION['draugiem_config_name'])) {
 				self::$active_config = $_SESSION['draugiem_config_name'];
+			}
+			if (!empty($_SESSION['draugiem_userkey'])) {
 				self::$user_key = $_SESSION['draugiem_userkey'];
 			}
 		} else {
@@ -105,7 +107,7 @@ class DraugiemApi {
 		extract($config);
 		self::$model = $model;
 		self::$request = $request;
-		self::$active_config = $active_config;
+		self::$active_config = $_SESSION['draugiem_config_name'] = $active_config;
 	}
 
 	/**
@@ -593,7 +595,11 @@ class DraugiemApi {
 	 * @param int $creator User ID of the user that created the notification (if it is 0, application name wil be shown as creator)
 	 * @return boolean Returns true if notification was created successfully or false if it was not created (permission was denied or posting limit was reached).
 	 */
-	public static function addNotification($text, $prefix = false, $link = false, $creator = 0) {
+	public static function addNotification($text, $prefix = false, $link = false, $creator = 0, $target_userkey = false) {
+		if ($target) {
+			self::$user_key = $target_userkey;
+		}
+
 		$response = self::apiCall('add_notification', array(
 			'text' => $text,
 			'prefix' => $prefix,
@@ -637,7 +643,7 @@ class DraugiemApi {
 			}
 		}
 
-		$response = self::apiRequest($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
+		$response = self::apiRequest($url);
 
 		if ($response === false) {//Request failed
 			self::$lastError = 1;
@@ -669,7 +675,7 @@ class DraugiemApi {
 	 * @return mixed
 	 */
 	public static function apiRequest($url) {
-		return file_get_contents($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
+		return @file_get_contents($url);//Get API response (@ to avoid accidentaly displaying API keys in case of errors)
 	}
 
 	/**

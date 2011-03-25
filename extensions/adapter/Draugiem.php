@@ -90,7 +90,7 @@ class Draugiem extends \lithium\core\Object {
 		));
 
 		if ($api::getSession()) {
-			$user = $model::$query($api::getUserData());
+			$user = $model::$query($api::getUserKey(), $api::getUserData());
 		} else {
 			throw new \RuntimeException(
 				'Nevar savienoties ar Draugiem.lv'
