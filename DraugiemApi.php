@@ -285,7 +285,8 @@ class DraugiemApi {
 			'icon' => 'i_', //50x50px
 			'small'=>'sm_', //100x100px (default)
 			'medium' => 'm_', //215px wide
-			'large' => 'l_', //710px wide
+			'large' => 'l_', //710px wide,
+			'normal' => 'nm_' //240px wide
 		);
 		if (isset($sizes[$size])) {
 			$img = str_replace('/sm_', '/' . $sizes[$size], $img);
