@@ -1,5 +1,4 @@
 <?php
-
 namespace li3_dr\extensions\adapter;
 
 use \Exception;
@@ -56,6 +55,15 @@ class Draugiem extends \lithium\core\Object {
 	);
 
 	/**
+	 * Dynamic class dependencies.
+	 *
+	 * @var array Associative array of class names & their namespaces.
+	 */
+	protected static $_classes = array(
+		'session' => '\lithium\storage\Session'
+	);
+
+	/**
 	 * Ieseto adaptera sākumkonfigurāciju
 	 *
 	 * @param array $config
@@ -82,6 +90,9 @@ class Draugiem extends \lithium\core\Object {
 		$model = $this->_model;
 		$query = $this->_query;
 		$api = $this->_api;
+		$session = static::$_classes['session'];
+
+		$api::cookieFix();
 
 		$api::config(array(
 			'active_config' => $this->_config,

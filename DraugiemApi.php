@@ -1,5 +1,4 @@
 <?php
-
 namespace li3_dr;
 
 use \Exception;
@@ -511,19 +510,23 @@ class DraugiemApi {
 	  * @return string HTML code that needs to be displayed to embed Draugiem.lv Javascript
 	  */
 	public static function getJavascript($resize_container = false, $callback_html = false) {
-		$data = '<script type="text/javascript" src="'.self::$config[self::$active_config]['js_url'].'" charset="utf-8"></script>'."\n";
-		$data.= '<script type="text/javascript">'."\n";
-		if($resize_container){
-			$data.= " var draugiem_container='$resize_container';\n";
+		if (!empty(self::$config[self::$active_config])) {
+			$data = '<script type="text/javascript" src="'.self::$config[self::$active_config]['js_url'].'" charset="utf-8"></script>'."\n";
+			$data.= '<script type="text/javascript">'."\n";
+			if($resize_container){
+				$data.= " var draugiem_container='$resize_container';\n";
+			}
+			if(!empty($_SESSION['draugiem_domain'])){
+				$data.= " var draugiem_domain='".self::getSessionDomain()."';\n";
+			}
+			if($callback_html){
+				$data.= " var draugiem_callback_url='".$callback_html."';\n";
+			}
+			$data.='</script>'."\n";
+			return $data;
+		} else {
+			return false;
 		}
-		if(!empty($_SESSION['draugiem_domain'])){
-			$data.= " var draugiem_domain='".self::getSessionDomain()."';\n";
-		}
-		if($callback_html){
-			$data.= " var draugiem_callback_url='".$callback_html."';\n";
-		}
-		$data.='</script>'."\n";
-		return $data;
 	}
 
 	/**
