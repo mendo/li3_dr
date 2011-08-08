@@ -1,9 +1,10 @@
 <?php
 namespace li3_dr;
 
-use \Exception;
-use \lithium\core\Libraries;
-use \lithium\util\Set;
+use lithium\util\Set;
+use lithium\core\Libraries;
+use lithium\storage\Session;
+use lithium\action\DispatchException;
 
 /**
  * Draugiem.lv API klase
@@ -11,102 +12,98 @@ use \lithium\util\Set;
  * Satur funkcijas, kuras autorizē lietotāju un iegūst pieejamos datus no Draugiem.lv
  */
 class DraugiemApi {
+
 	/**
-	 * API modelis
+	 * API iestatījumi
 	 *
 	 * @var array
 	 */
-	protected static $model = null;
+	protected static $_config = array();
 
 	/**
-	 * Draugiem API iespējamie iestatījumi
+	 * Aplikācijas pieprasījuma parametri
 	 *
 	 * @var array
 	 */
-	protected static $config = array();
-
-	/**
-	 * Pašlaik izmantoto iestatījumu identifikators
-	 *
-	 * @var string
-	 */
-	private static $active_config = null;
-
-	/**
-	 * Aplikācijas $_GET pieprasījuma dati
-	 *
-	 * @var array
-	 */
-	private static $request = array();
-
-	/**
-	 * Draugiem.lv lietotāja API atslēga
-	 * 
-	 * @var string
-	 */
-	private static $user_key = false;
+	protected static $_request = array();
 
 	/**
 	 * Draugiem.lv lietotāja pašreizējās sesijas atslēga
 	 *
 	 * @var string
 	 */
-	private static $session_key = false;
+	protected static $_session_key = false;
+
+	/**
+	 * Draugiem.lv lietotāja API atslēga
+	 *
+	 * @var string
+	 */
+	protected static $_user_key = false;
 
 	/**
 	 * Draugiem.lv lietotāja dati
 	 *
 	 * @var array
 	 */
-	private static $userinfo = false;
+	protected static $_user_info = false;
 
 	/**
 	 * Lietotāju skaits, kuri lieto aplikāciju iekš Draugiem.lv
 	 *
 	 * @var array
 	 */
-	private static $lastTotal = array();
+	protected static $_last_total_user_count = array();
 
 	/**
 	 * Error code for last failed API request
 	 *
 	 * @var int
 	 */
-	public static $lastError = 0;
+	protected static $_last_error = 0;
 
 	/**
 	 * Error description for last failed API request
 	 *
 	 * @var int 
 	 */
-	public static $lastErrorDescription = '';
+	protected static $_last_error_description = '';
 
 	/**
 	 * Ieseto aplikācijas iestatījumus un pašreiz izmantoto iestatījumu identifikatoru
 	 */
 	public static function __init() {
-		$config = Libraries::get('li3_dr');
+		$library = Libraries::get('li3_dr');
+		$session = Session::read('draugiem_api');
 
-		if (!empty($config['config'])) {
-			self::$config = $config['config'];
-			if (!empty($_SESSION['draugiem_config_name'])) {
-				self::$active_config = $_SESSION['draugiem_config_name'];
-			}
-			if (!empty($_SESSION['draugiem_userkey'])) {
-				self::$user_key = $_SESSION['draugiem_userkey'];
+		if (!empty($library['config'])) {
+			self::$_config = $library['config'];
+
+			if (!empty($session['draugiem_userkey'])) {
+				self::$_user_key = $session['draugiem_userkey'];
 			}
 		} else {
-			throw new \RuntimeException(
+			throw new DispatchException(
 				'Nav norādīti Draugiem.lv aplikācijas iestatījumi'
 			);
 		}
 	}
 
-	public static function config($config) {
-		extract($config);
-		self::$model = $model;
-		self::$request = $request;
-		self::$active_config = $_SESSION['draugiem_config_name'] = $active_config;
+	/**
+	 * Atgriež visu vai daļu no iestatījumiem
+	 *
+	 * @param string $key
+	 * @return mixed
+	 */
+	public static function config($key = null) {
+		if (!empty($key)) {
+			if (isset(self::$_config[$key])) {
+				return self::$_config[$key];
+			}
+			return false;
+		}
+
+		return self::$_config;
 	}
 
 	/**
@@ -118,73 +115,76 @@ class DraugiemApi {
 	 *
 	 * @return boolean Returns true on successful authorization or false on failure.
 	 */
-	public static function getSession() {
-		if (session_id() == '') {
-			session_start();
-		}
+	public static function getSession(array $request = array()) {
+		$session = Session::read('draugiem_api');
+		self::cookieFix();
 
-		if (isset(self::$request['dr_auth_status']) && self::$request['dr_auth_status'] != 'ok') {
+		if (isset($request['dr_auth_status']) && $request['dr_auth_status'] != 'ok') {
 			self::clearSession();
-		} elseif(isset(self::$request['dr_auth_code']) && (empty($_SESSION['draugiem_auth_code']) ||
-			self::$request['dr_auth_code'] != $_SESSION['draugiem_auth_code'])) {	// New session authorization
+		} elseif (isset($request['dr_auth_code']) && (empty($session['draugiem_auth_code']) ||
+			$request['dr_auth_code'] != $session['draugiem_auth_code'])) {	// New session authorization
 
 			self::clearSession(); //Delete current session data to prevent overwriting of existing session
 
 			//Get authorization data
-			$response = self::apiCall('authorize', array('code' => self::$request['dr_auth_code']));
+			$response = self::apiCall('authorize', array('code' => $request['dr_auth_code']));
 
 			if ($response && isset($response['apikey'])) {//API key received
 				//User profile info
 				$userData = reset($response['users']);
 
 				if (!empty($userData)) {
-					if (!empty(self::$request['session_hash'])) {//Internal application, store session key to recheck if draugiem.lv session is active
-						$_SESSION['draugiem_lastcheck'] = time();
-						self::$session_key = $_SESSION['draugiem_session'] = self::$request['session_hash'];
-						if (isset(self::$request['domain'])) {//Domain for JS actions
-							$_SESSION['draugiem_domain'] = preg_replace('/[^a-z0-9\.]/', '', self::$request['domain']);
+					if (!empty($request['session_hash'])) {//Internal application, store session key to recheck if draugiem.lv session is active
+						Session::write('draugiem_api.draugiem_lastcheck', time());
+						self::$_session_key = $session['draugiem_session'] = $request['session_hash'];
+
+						if (isset($request['domain'])) {//Domain for JS actions
+							Session::write('draugiem_api.draugiem_domain', preg_replace('/[^a-z0-9\.]/', '', $request['domain']));
 						}
+
 						if (!empty($response['inviter'])) {//Fill invitation info if any
-							$_SESSION['draugiem_invite'] = array(
+							Session::write('draugiem_api.draugiem_invite', array(
 								'inviter' => (int) $response['inviter'],
 								'extra' => isset($response['invite_extra']) ? $response['invite_extra'] : false,
-							);
+							));
 						}
 					}
 
-					$_SESSION['draugiem_auth_code'] = self::$request['dr_auth_code'];
+					Session::write('draugiem_api.draugiem_auth_code', $request['dr_auth_code']);
 
 					//User API key
-					self::$user_key = $_SESSION['draugiem_userkey'] = $response['apikey'];
+					self::$_user_key = $response['apikey'];
+					Session::write('draugiem_api.draugiem_userkey', self::$_user_key);
+
 					//User language
-					$_SESSION['draugiem_language'] = $response['language'];
+					Session::write('draugiem_api.draugiem_language', $response['language']);
+
 					//Profile info
-					self::$userinfo = $_SESSION['draugiem_user'] = $userData;
-					//Config key
-					$_SESSION['draugiem_config_name'] = self::$active_config;
+					self::$_user_info = $userData;
+					Session::write('draugiem_api.draugiem_user', self::$_user_info);
 
 					return true;//Authorization OK
 				}
 			}
-		} elseif(isset($_SESSION['draugiem_user'])) {//Existing session
+		} elseif (isset($session['draugiem_user'])) {//Existing session
 			//Load data from session
-			self::$user_key = $_SESSION['draugiem_userkey'];
-			self::$userinfo = $_SESSION['draugiem_user'];
+			self::$_user_key = $session['draugiem_userkey'];
+			self::$_user_info = $session['draugiem_user'];
 
-			if (isset($_SESSION['draugiem_lastcheck'], $_SESSION['draugiem_session'])) { //Iframe app session
+			if (isset($session['draugiem_lastcheck'], $session['draugiem_session'])) { //Iframe app session
 
-				if (isset(self::$request['dr_auth_code'], self::$request['domain'])) {//Fix session domain if changed
-					$_SESSION['draugiem_domain'] = preg_replace('/[^a-z0-9\.]/', '', self::$request['domain']);
+				if (isset($request['dr_auth_code'], $request['domain'])) {//Fix session domain if changed
+					Session::write('draugiem_api.draugiem_domain', preg_replace('/[^a-z0-9\.]/', '', $request['domain']));
 				}
 
-				self::$session_key = $_SESSION['draugiem_session'];
+				self::$_session_key = $session['draugiem_session'];
 				//Session check timeout not reached yet, do not check session
-				if ($_SESSION['draugiem_lastcheck'] > time() - self::$config[self::$active_config]['timeout']) {
+				if ($session['draugiem_lastcheck'] > time() - self::$_config['timeout']) {
 					return true;
 				} else {//Session check timeout reached, recheck draugiem.lv session status
-					$response = self::apiCall('session_check', array('hash' => self::$session_key));
+					$response = self::apiCall('session_check', array('hash' => self::$_session_key));
 					if(!empty($response['status']) && $response['status'] == 'OK'){
-						$_SESSION['draugiem_lastcheck'] = time();
+						Session::write('draugiem_api.draugiem_lastcheck', time());
 						return true;
 					}
 				}
@@ -202,7 +202,7 @@ class DraugiemApi {
 	 * @return string API key of current user or false if no user has been authorized
 	 */
 	public static function getUserKey() {
-		return self::$user_key;
+		return self::$_user_key;
 	}
 
 	/**
@@ -211,7 +211,8 @@ class DraugiemApi {
 	 * @return string Two letter country code (lv/ru/en/de/hu/lt)
 	 */
 	public static function getUserLanguage() {
-		return isset($_SESSION['draugiem_language']) ? $_SESSION['draugiem_language'] : 'lv';
+		$draugiem_language = Session::read('draugiem_api.draugiem_language');
+		return !empty($draugiem_language) ? $draugiem_language : 'lv';
 	}
 
 	/**
@@ -220,12 +221,12 @@ class DraugiemApi {
 	 * @return int Draugiem.lv user ID of currently authorized user or false if no user has been authorized
 	 */
 	public static function getUserId() {
-		if (self::$user_key && !self::$userinfo) { //We don't have user data, request
-			self::$userinfo = $this->getUserData();
+		if (self::$_user_key && !self::$_user_info) { //We don't have user data, request
+			self::$_user_info = $this->getUserData();
 		}
 		
-		if(isset(self::$userinfo['uid'])){//We have user data, return uid
-			return self::$userinfo['uid'];
+		if (isset(self::$_user_info['uid'])) {//We have user data, return uid
+			return self::$_user_info['uid'];
 		} else {
 			return false;
 		}
@@ -247,8 +248,8 @@ class DraugiemApi {
 		} else {//Single ID
 			$return_single = true;
 
-			if (self::$userinfo && ($ids == self::$userinfo['uid'] || $ids === false)) {//If we have userinfo of active user, return it immediately
-				return self::$userinfo;
+			if (self::$_user_info && ($ids == self::$_user_info['uid'] || $ids === false)) {//If we have userinfo of active user, return it immediately
+				return self::$_user_info;
 			}
 
 			if ($ids !== false) {
@@ -317,13 +318,14 @@ class DraugiemApi {
 	 * @return integer Returns number of friends or false on failure
 	 */
 	public static function getFriendCount() {
-		if (isset(self::$lastTotal['friends'][self::$user_key])) {
-			return self::$lastTotal['friends'][self::$user_key];
+		if (isset(self::$_last_total_user_count['friends'][self::$_user_key])) {
+			return self::$_last_total_user_count['friends'][self::$_user_key];
 		}
+		
 		$response = self::apiCall('app_friends_count');
 		if (isset($response['friendcount'])) {
-			self::$lastTotal['friends'][self::$user_key] = (int) $response['friendcount'];
-			return self::$lastTotal['friends'][self::$user_key];
+			self::$_last_total_user_count['friends'][self::$_user_key] = (int) $response['friendcount'];
+			return self::$_last_total_user_count['friends'][self::$_user_key];
 		}
 		return false;
 	}
@@ -344,7 +346,7 @@ class DraugiemApi {
 		));
 
 		if ($response) {
-			self::$lastTotal['friends'][self::$user_key] = (int) $response['total'];
+			self::$_last_total_user_count['friends'][self::$_user_key] = (int) $response['total'];
 			if ($return_ids) {
 				return $response['userids'];
 			} else {
@@ -390,13 +392,14 @@ class DraugiemApi {
 	 * @return integer Returns number of users or false on failure
 	 */
 	public static function getUserCount() {
-		if (isset(self::$lastTotal['users'])) {
-			return self::$lastTotal['users'];
+		if (isset(self::$_last_total_user_count['users'])) {
+			return self::$_last_total_user_count['users'];
 		}
+		
 		$response = self::apiCall('app_users_count');
 		if (isset($response['usercount'])) {
-			self::$lastTotal['users'] = (int) $response['usercount'];
-			return self::$lastTotal['users'];
+			self::$_last_total_user_count['users'] = (int) $response['usercount'];
+			return self::$_last_total_user_count['users'];
 		}
 		return false;
 	}
@@ -417,7 +420,7 @@ class DraugiemApi {
 		));
 
 		if ($response) {
-			self::$lastTotal['users'] = (int) $response['total'];
+			self::$_last_total_user_count['users'] = (int) $response['total'];
 			if ($return_ids) {
 				return $response['userids'];
 			} else {
@@ -426,41 +429,6 @@ class DraugiemApi {
 		} else {
 			return false;
 		}
-	}
-
-	################################################
-	###### Draugiem.lv passport functions ##########
-	################################################
-
-	/**
-	 * Get URL for Draugiem.lv Passport login page to authenticate user
-	 *
-	 * @param string $redirect_url URL where user has to be redirected after authorization. The URL has to be in the same domain as URL that has been set in the properties of the application.
-	 * @return string URL of Draugiem.lv Passport login page
-	 */
-	public static function getLoginURL ($redirect_url) {
-		$hash = md5(self::$config[self::$active_config]['app_key'] . $redirect_url);//Request checksum
-		$link = self::$config[self::$active_config]['login_url'] . '?app=' . self::$config[self::$active_config]['app_id'] . '&hash=' . $hash . '&redirect=' . urlencode($redirect_url);
-		return $link;
-	}
-
-	/**
-	 * Get HTML for Draugiem.lv Passport login button with Draugiem.lv Passport logo.
-	 *
-	 * @param string $redirect_url URL where user has to be redirected after authorization. The URL has to be in the same domain as URL that has been set in the properties of the application.
-	 * @param boolean $popup Whether to open authorization page within a popup window (true - popup, false - same window).
-	 * @return string HTML of Draugiem.lv Passport login button
-	 */
-	public static function getLoginButton($redirect_url, $popup = true) {
-		$url = htmlspecialchars($this->getLoginUrl($redirect_url));
-
-		if ($popup) {
-		$js = "if(handle=window.open('$url&amp;popup=1','Dr_". self::$config[self::$active_config]['app_id'] ."' ,'width=400, height=400, left='+(screen.width?(screen.width-400)/2:0)+', top='+(screen.height?(screen.height-400)/2:0)+',scrollbars=no')){handle.focus();return false;}";
-			$onclick = ' onclick="'.$js.'"';
-		} else {
-			$onclick = '';
-		}
-		return '<a href="'.$url.'"'.$onclick.'><img border="0" src="http://api.draugiem.lv/authorize/login_button.png" alt="draugiem.lv" /></a>';
 	}
 
 	############################################
@@ -475,7 +443,8 @@ class DraugiemApi {
 	 * @return string Draugiem.lv domain name that is currently used by application user
 	 */
 	public static function getSessionDomain() {
-		return isset($_SESSION['draugiem_domain']) ? $_SESSION['draugiem_domain'] : 'www.draugiem.lv';
+		$draugiem_domain = Session::read('draugiem_api.draugiem_domain');
+		return !empty($draugiem_domain) ? $draugiem_domain : 'www.draugiem.lv';
 	}
 
 	/**
@@ -490,43 +459,8 @@ class DraugiemApi {
 	 * @return returns array with invitation info or false if no invitation has been accepted.
 	 */
 	public static function getInviteInfo(){
-		return isset($_SESSION['draugiem_invite']) ? $_SESSION['draugiem_invite'] : false;
-	}
-
-	 /**
-	  * Get HTML for embedding Javascript code to allow to resize application iframe and perform other actions.
-	  *
-	  * Javascript code will automatically try to resize iframe according to the height of DOM element with ID that is passed
-	  * in $resize_container parameter.
-	  *
-	  * Function also enables Javascript callback values if $callback_html argument is passed. It has to contain full
-	  * address of the copy of callback.html on the application server (e.g. http://example.com/callback.html).
-	  * Original can be found at http://www.draugiem.lv/applications/external/callback.html
-	  *
-	  * This function has to be called after getSession().
-	  *
-	  * @param string $resize_container DOM element ID of page container element
-	  * @param string $callback_html address of callback.html Optional if no return values for Javascript API functions are needed.
-	  * @return string HTML code that needs to be displayed to embed Draugiem.lv Javascript
-	  */
-	public static function getJavascript($resize_container = false, $callback_html = false) {
-		if (!empty(self::$config[self::$active_config])) {
-			$data = '<script type="text/javascript" src="'.self::$config[self::$active_config]['js_url'].'" charset="utf-8"></script>'."\n";
-			$data.= '<script type="text/javascript">'."\n";
-			if($resize_container){
-				$data.= " var draugiem_container='$resize_container';\n";
-			}
-			if(!empty($_SESSION['draugiem_domain'])){
-				$data.= " var draugiem_domain='".self::getSessionDomain()."';\n";
-			}
-			if($callback_html){
-				$data.= " var draugiem_callback_url='".$callback_html."';\n";
-			}
-			$data.='</script>'."\n";
-			return $data;
-		} else {
-			return false;
-		}
+		$draugiem_invite = Session::read('draugiem_api.draugiem_invite');
+		return !empty($draugiem_invite) ? $draugiem_invite : false;
 	}
 
 	/**
@@ -535,7 +469,6 @@ class DraugiemApi {
 	 * This function has to be called before getSession() and after session_start()
 	 */
 	public static function cookieFix() {
-
 		$user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
 
 		//Set up P3P policy to allow cookies in iframe with IE
@@ -601,7 +534,7 @@ class DraugiemApi {
 	 */
 	public static function addNotification($text, $prefix = false, $link = false, $creator = 0, $target_userkey = false) {
 		if ($target) {
-			self::$user_key = $target_userkey;
+			self::$_user_key = $target_userkey;
 		}
 
 		$response = self::apiCall('add_notification', array(
@@ -631,10 +564,10 @@ class DraugiemApi {
 	 * @return mixed API response data or false if the request has failed
 	 */
 	public static function apiCall($action, $args = array()) {
-		$url = self::$config[self::$active_config]['api_url'] . '?app=' . self::$config[self::$active_config]['app_key'];
+		$url = self::$_config['api_url'] . '?app=' . self::$_config['app_key'];
 
-		if (self::$user_key) {//User has been authorized
-			$url .= '&apikey=' . self::$user_key;
+		if (self::$_user_key) {//User has been authorized
+			$url .= '&apikey=' . self::$_user_key;
 		}
 
 		$url .= '&action=' . $action;
@@ -650,21 +583,21 @@ class DraugiemApi {
 		$response = self::apiRequest($url);
 
 		if ($response === false) {//Request failed
-			self::$lastError = 1;
-			self::$lastErrorDescription = 'No response from API server';
+			self::$_last_error = 1;
+			self::$_last_error_description = 'No response from API server';
 			return false;
 		}
 
 		$response = unserialize($response);
 
 		if (empty($response)) {//Empty response
-			self::$lastError = 2;
-			self::$lastErrorDescription = 'Empty API response';
+			self::$_last_error = 2;
+			self::$_last_error_description = 'Empty API response';
 			return false;
 		} else {
 			if (isset($response['error'])) {//API error, fill error attributes
-				self::$lastError = $response['error']['code'];
-				self::$lastErrorDescription = 'API error: '.$response['error']['description'];
+				self::$_last_error = $response['error']['code'];
+				self::$_last_error_description = 'API error: ' . $response['error']['description'];
 				return false;
 			} else {
 				return $response;
@@ -686,17 +619,7 @@ class DraugiemApi {
 	 * Iztīra Draugiem.lv sesijas laikā iesetotos datus
 	 */
 	public static function clearSession() {
-		unset(
-			$_SESSION['draugiem_auth_code'],
-			$_SESSION['draugiem_session'],
-			$_SESSION['draugiem_userkey'],
-			$_SESSION['draugiem_user'],
-			$_SESSION['draugiem_lastcheck'],
-			$_SESSION['draugiem_language'],
-			$_SESSION['draugiem_domain'],
-			$_SESSION['draugiem_invite'],
-			$_SESSION['draugiem_config_name']
-		);
+		return Session::delete('draugiem_api');
 	}
 }
 ?>
