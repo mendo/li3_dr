@@ -72,7 +72,7 @@ class DraugiemApi {
 	/**
 	 * Ieseto aplikācijas iestatījumus un pašreiz izmantoto iestatījumu identifikatoru
 	 */
-	public static function __init() {
+	public static function _init() {
 		$library = Libraries::get('li3_dr');
 		$session = Session::read('draugiem_api');
 
@@ -622,4 +622,8 @@ class DraugiemApi {
 		return Session::delete('draugiem_api');
 	}
 }
+
+DraugiemApi::_init();
+
+
 ?>

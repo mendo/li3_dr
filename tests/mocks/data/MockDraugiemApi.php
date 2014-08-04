@@ -10,8 +10,8 @@ namespace li3_dr\tests\mocks\data;
 
 class MockDraugiemApi extends \lithium\tests\mocks\data\MockBase {
 
-	public static function __init($config = array()) {
-		parent::__init();
+	public static function _init($config = array()) {
+		parent::_init();
 	}
 
 	public static function getSession() {
@@ -202,5 +202,7 @@ class MockDraugiemApi extends \lithium\tests\mocks\data\MockBase {
 		}
 	}
 }
+
+MockDraugiemApi::_init();
 
 ?>
