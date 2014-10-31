@@ -9,7 +9,7 @@ use lithium\g11n\Message;
 class Draugiem extends \lithium\template\Helper {
 
 	protected $_config = array();
-	
+
 	protected $_classes = array(
 		'DraugiemApi' => 'li3_dr\DraugiemApi'
 	);
@@ -19,7 +19,7 @@ class Draugiem extends \lithium\template\Helper {
 	 */
 	public function __construct(array $config = array()) {
 		$defaults = array();
-		
+
 		parent::__construct($config + $defaults);
 	}
 
@@ -61,9 +61,9 @@ class Draugiem extends \lithium\template\Helper {
 		} else {
 			$onclick = '';
 		}
-		return '<a href="'.$url.'"'.$onclick.'><img border="0" src="http://api.draugiem.lv/authorize/login_button.png" alt="draugiem.lv" /></a>';
+		return '<a href="'.$url.'"'.$onclick.'><img border="0" src="//api.draugiem.lv/authorize/login_button.png" alt="draugiem.lv" /></a>';
 	}
-	
+
 	/**
 	 * Get draugiem.lv domain (usually "www.draugiem.lv" but can be different for international versions of the portal) for current iframe session.
 	 *
